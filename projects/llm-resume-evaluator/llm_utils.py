@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from groq import Groq
+#import json
 
 
 load_dotenv()
@@ -11,7 +12,7 @@ if not my_api_key:
     raise ValueError("GROQ_API_KEY environment variable is not set.")
 
 client = Groq(api_key=my_api_key)
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 
 def parse_query(system_prompt:str, query_prompt: str, response_format={"type": "json_object"}):
 
@@ -26,4 +27,9 @@ def parse_query(system_prompt:str, query_prompt: str, response_format={"type": "
          response_format = response_format
    )
 
-   return response
+  
+   #raw_content = response.choices[0].message.content
+   #json_content = json.loads(raw_content)
+   #return json_content
+
+   return response.choices[0].message.content

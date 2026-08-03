@@ -1,5 +1,5 @@
 from llm_utils import parse_query
-from jd_parser import job_description_schema
+from jd_parser import jobDescription_schema
 from resume_parser import resume_schema 
 from pydantic import BaseModel
 
@@ -8,13 +8,13 @@ class MatchResult(BaseModel):
     details: dict
 
 
-match_result_schema = MatchResult.model_json_schema(indent=2)
+match_result_schema = MatchResult.model_json_schema()
 
 system_prompt = f"""
 ROLE: You are a senior HR recruiter with extensive experience in evaluating resumes and matching candidates to job descriptions. 
 
 TASK: Your task is to assess the alignment between a candidate's resume (schema below) and a given job description (schema below), providing a score and required details.
-JOB DESCRIPTION SCHEMA: {job_description_schema}
+JOB DESCRIPTION SCHEMA: {jobDescription_schema}
 RESUME SCHEMA: {resume_schema}
 Return the JSON output in the following format: {match_result_schema}
 In the details dictionary field, give :
