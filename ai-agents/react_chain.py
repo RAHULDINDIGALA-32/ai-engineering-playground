@@ -1,4 +1,4 @@
-# ReAct Loop Framework: Reasoning + Action Loop
+# ReAct Loop Framework: Reasoning + Action Loop (Thought -> Action -> Observation)
 
 import os
 from pathlib import Path
