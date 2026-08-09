@@ -1,3 +1,5 @@
+# Prompt Chaining: Debugging, Modularity, Multi-Model, Retry-steps
+
 import os
 from dotenv import load_dotenv
 from groq import Groq
@@ -70,7 +72,9 @@ def call_llm(system_prompt, user_prompt, model=STANDARD_MODEL):
 
 def step1_resume_extract(resume):
     print("\nSTEP-1: Resume Extraction")
-    system_prompt="""
+
+    # Use RTCZOF fromat to write the Prompts (mostly SYSTEM_PROMPTS)
+    system_prompt=""" 
     ROLE:  You are an expert RESUME PARSER. 
 
     TASK: You will be provided with a Candidates RESUME, and your task is to analyze & extract the Skills from it.
@@ -93,6 +97,8 @@ def step1_resume_extract(resume):
 
 def step2_JD_extract(jd):
     print("\nSTEP-2: Job Description Extraction")
+
+    # Use RTCZOF fromat to write the Prompts (mostly SYSTEM_PROMPTS)
     system_prompt="""
     ROLE: You are an professional HR assistant. 
     
@@ -117,6 +123,8 @@ def step2_JD_extract(jd):
 
 def step3_match(candidate, jd):
     print("\nSTEP-3: Match & Scoring")
+
+    # Use RTCZOF fromat to write the Prompts (mostly SYSTEM_PROMPTS)
     system_prompt="""
     ROLE: You are a senior HR recruiter with extensive experience in evaluating candidates skills and matching candidates to job descriptions. 
 

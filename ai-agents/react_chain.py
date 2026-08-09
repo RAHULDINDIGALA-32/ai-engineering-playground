@@ -17,6 +17,13 @@ if not my_api_key:
 client = Groq(api_key=my_api_key)
 MODEL = "openai/gpt-oss-120b"
 
+# Use RTCZOF fromat to write the Prompts (mostly SYSTEM_PROMPTS)
+# R - ROLE
+# T - TASK
+# C - CONSTRAINTS
+# O - OUTPUT FORMAT
+# Z - ZERO/ONE/FEW SHOT
+# F - FALLBACK
 SYSTEM_PROMPT = """
 ROLE: You are an expert shopping assistant.
 
