@@ -1,17 +1,17 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from contextlib import asynccontextmanager
+import logging
+
 from test_data import products
 from models import Products, ProductUpdate
 from db_config import engine, get_db, SessionLocal
 import db_models
-import logging
 
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"]
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 def init_db():
@@ -45,9 +45,28 @@ def init_db():
         db.close()
         logging.info("init_db() finished")
 
-db_models.Base.metadata.create_all(bind=engine)
 
-init_db()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    # Application Startup
+    logging.info("Server starting...")
+
+    db_models.Base.metadata.create_all(bind=engine)
+    init_db()
+
+    yield
+
+    # Application Shutdown
+    logging.info("Application shutting down...")
+
+
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"]
+)
 
 @app.get("/")
 def home():
