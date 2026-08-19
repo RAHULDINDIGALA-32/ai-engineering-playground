@@ -1,0 +1,598 @@
+{
+  "policies": [
+    {
+      "id": "POL-001",
+      "category": "leave",
+      "subcategory": "paid_leave",
+      "title": "Annual Paid Leave",
+      "description": "Employees receive 24 days of paid leave per year. Unused paid leave can be carried forward for up to 10 days into the following year.",
+      "is_active": true,
+      "benefit": {
+        "type": "leave_days",
+        "amount": 24,
+        "unit": "days_per_year"
+      },
+      "carry_forward": {
+        "allowed": true,
+        "maximum_days": 10,
+        "period": "following_year"
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "annual",
+        "keywords": [
+          "paid leave",
+          "annual leave",
+          "vacation",
+          "carry forward",
+          "leave balance"
+        ]
+      }
+    },
+    {
+      "id": "POL-002",
+      "category": "work_arrangement",
+      "subcategory": "remote_work",
+      "title": "Hybrid Work Schedule",
+      "description": "Employees work from the office on Tuesday, Wednesday and Thursday. Monday and Friday are optional work-from-home days. Employees must inform their manager before working remotely.",
+      "is_active": true,
+      "work_from_office_days": [
+        "Tuesday",
+        "Wednesday",
+        "Thursday"
+      ],
+      "work_from_home_days": [
+        "Monday",
+        "Friday"
+      ],
+      "remote_work": {
+        "allowed": true,
+        "manager_notification_required": true
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "weekly",
+        "keywords": [
+          "work from home",
+          "WFH",
+          "remote work",
+          "hybrid",
+          "office days"
+        ]
+      }
+    },
+    {
+      "id": "POL-003",
+      "category": "benefits",
+      "subcategory": "gym_reimbursement",
+      "title": "Gym Reimbursement",
+      "description": "Employees receive Rs 3000 per month for gym reimbursement. A valid monthly receipt must be submitted through the employee benefits portal.",
+      "is_active": true,
+      "benefit": {
+        "type": "reimbursement",
+        "amount": 3000,
+        "currency": "INR",
+        "frequency": "monthly"
+      },
+      "requirements": [
+        "valid monthly receipt",
+        "submission through employee benefits portal"
+      ],
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "monthly",
+        "keywords": [
+          "gym",
+          "fitness",
+          "gym reimbursement",
+          "fitness reimbursement",
+          "benefits portal"
+        ]
+      }
+    },
+    {
+      "id": "POL-004",
+      "category": "benefits",
+      "subcategory": "internet_reimbursement",
+      "title": "Home Internet Reimbursement",
+      "description": "Employees can claim Rs 2000 per month for home internet expenses if they work remotely at least four days per month.",
+      "is_active": true,
+      "benefit": {
+        "type": "reimbursement",
+        "amount": 2000,
+        "currency": "INR",
+        "frequency": "monthly"
+      },
+      "eligibility": {
+        "minimum_remote_work_days_per_month": 4
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "monthly",
+        "keywords": [
+          "internet",
+          "home internet",
+          "internet reimbursement",
+          "remote work",
+          "WFH allowance"
+        ]
+      }
+    },
+    {
+      "id": "POL-005",
+      "category": "employment",
+      "subcategory": "notice_period",
+      "title": "Notice Period",
+      "description": "Employees have a 90 day notice period. Employees who are still in their probation period have a 30 day notice period.",
+      "is_active": true,
+      "notice_period": {
+        "regular_employee": {
+          "days": 90
+        },
+        "probation_employee": {
+          "days": 30
+        }
+      },
+      "filters": {
+        "employee_type": [
+          "regular",
+          "probation"
+        ],
+        "frequency": "event_based",
+        "keywords": [
+          "notice period",
+          "resignation",
+          "notice",
+          "probation notice"
+        ]
+      }
+    },
+    {
+      "id": "POL-006",
+      "category": "benefits",
+      "subcategory": "mobile_reimbursement",
+      "title": "Mobile Phone Reimbursement",
+      "description": "The company provides Rs 1500 per month for mobile phone expenses. Employees must submit a copy of their mobile bill to receive the reimbursement.",
+      "is_active": true,
+      "benefit": {
+        "type": "reimbursement",
+        "amount": 1500,
+        "currency": "INR",
+        "frequency": "monthly"
+      },
+      "requirements": [
+        "copy of mobile bill"
+      ],
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "monthly",
+        "keywords": [
+          "mobile",
+          "phone",
+          "mobile reimbursement",
+          "phone bill",
+          "mobile allowance"
+        ]
+      }
+    },
+    {
+      "id": "POL-007",
+      "category": "benefits",
+      "subcategory": "health_insurance",
+      "title": "Health Insurance",
+      "description": "Employees receive health insurance coverage for themselves and their spouse. Children can also be included under the family health insurance plan.",
+      "is_active": true,
+      "coverage": {
+        "employee": true,
+        "spouse": true,
+        "children": true
+      },
+      "plan_type": "family_health_insurance",
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "ongoing",
+        "keywords": [
+          "health insurance",
+          "medical insurance",
+          "family insurance",
+          "spouse",
+          "children",
+          "dependents"
+        ]
+      }
+    },
+    {
+      "id": "POL-008",
+      "category": "work_schedule",
+      "subcategory": "working_hours",
+      "title": "Standard Working Hours",
+      "description": "The standard working hours are 9:30 AM to 6:30 PM from Monday to Friday. Employees are expected to complete eight working hours per day excluding lunch breaks.",
+      "is_active": true,
+      "working_days": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "working_hours": {
+        "start": "09:30",
+        "end": "18:30",
+        "timezone": "local"
+      },
+      "required_work_hours_per_day": 8,
+      "lunch_break_excluded": true,
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "daily",
+        "keywords": [
+          "working hours",
+          "office hours",
+          "work hours",
+          "schedule",
+          "lunch break"
+        ]
+      }
+    },
+    {
+      "id": "POL-009",
+      "category": "benefits",
+      "subcategory": "meal_allowance",
+      "title": "Office Meal Allowance",
+      "description": "Employees receive a meal allowance of Rs 250 for each day they work from the office. The meal allowance does not apply to work-from-home days.",
+      "is_active": true,
+      "benefit": {
+        "type": "allowance",
+        "amount": 250,
+        "currency": "INR",
+        "frequency": "per_office_day"
+      },
+      "eligibility": {
+        "office_work_required": true,
+        "wfh_eligible": false
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "daily",
+        "keywords": [
+          "meal",
+          "food",
+          "meal allowance",
+          "office meal",
+          "lunch allowance"
+        ]
+      }
+    },
+    {
+      "id": "POL-010",
+      "category": "compensation",
+      "subcategory": "performance_bonus",
+      "title": "Annual Performance Bonus",
+      "description": "Employees are eligible for a performance bonus once per year. The bonus amount depends on individual performance and overall company performance.",
+      "is_active": true,
+      "benefit": {
+        "type": "bonus",
+        "frequency": "annual"
+      },
+      "calculation_factors": [
+        "individual performance",
+        "overall company performance"
+      ],
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "annual",
+        "keywords": [
+          "bonus",
+          "performance bonus",
+          "annual bonus",
+          "variable pay"
+        ]
+      }
+    },
+    {
+      "id": "POL-011",
+      "category": "employment",
+      "subcategory": "probation",
+      "title": "Probation Period",
+      "description": "New employees have a six month probation period. During probation, employees are evaluated on performance, attendance and adherence to company policies.",
+      "is_active": true,
+      "probation": {
+        "duration": 6,
+        "unit": "months"
+      },
+      "evaluation_criteria": [
+        "performance",
+        "attendance",
+        "adherence to company policies"
+      ],
+      "filters": {
+        "employee_type": [
+          "new_employee",
+          "probation"
+        ],
+        "frequency": "initial_employment",
+        "keywords": [
+          "probation",
+          "probation period",
+          "new employee",
+          "confirmation",
+          "evaluation"
+        ]
+      }
+    },
+    {
+      "id": "POL-012",
+      "category": "leave",
+      "subcategory": "sick_leave",
+      "title": "Sick Leave",
+      "description": "Employees can request up to 10 days of sick leave per year. A medical certificate may be required when sick leave exceeds three consecutive working days.",
+      "is_active": true,
+      "benefit": {
+        "type": "leave_days",
+        "amount": 10,
+        "unit": "days_per_year"
+      },
+      "medical_certificate": {
+        "required_when_consecutive_days_exceed": 3
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "annual",
+        "keywords": [
+          "sick leave",
+          "medical leave",
+          "illness",
+          "medical certificate"
+        ]
+      }
+    },
+    {
+      "id": "POL-013",
+      "category": "leave",
+      "subcategory": "planned_leave_notice",
+      "title": "Planned Leave Notification",
+      "description": "Employees must notify their manager at least two weeks before taking more than five consecutive days of planned leave.",
+      "is_active": true,
+      "notification": {
+        "advance_notice_days": 14,
+        "applies_when_consecutive_leave_days_exceed": 5,
+        "manager_notification_required": true
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "event_based",
+        "keywords": [
+          "planned leave",
+          "long leave",
+          "leave notice",
+          "manager approval",
+          "consecutive leave"
+        ]
+      }
+    },
+    {
+      "id": "POL-014",
+      "category": "benefits",
+      "subcategory": "professional_development",
+      "title": "Professional Development Allowance",
+      "description": "The company provides Rs 5000 per year for professional development. Employees can use this allowance for approved courses, certifications, conferences and technical books.",
+      "is_active": true,
+      "benefit": {
+        "type": "allowance",
+        "amount": 5000,
+        "currency": "INR",
+        "frequency": "annual"
+      },
+      "eligible_expenses": [
+        "approved courses",
+        "certifications",
+        "conferences",
+        "technical books"
+      ],
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "annual",
+        "keywords": [
+          "professional development",
+          "learning",
+          "courses",
+          "certifications",
+          "conference",
+          "technical books",
+          "training"
+        ]
+      }
+    },
+    {
+      "id": "POL-015",
+      "category": "security",
+      "subcategory": "confidentiality",
+      "title": "Confidentiality Obligation",
+      "description": "Employees are expected to maintain confidentiality of company information, customer information and internal business documents even after leaving the company.",
+      "is_active": true,
+      "confidential_information": [
+        "company information",
+        "customer information",
+        "internal business documents"
+      ],
+      "post_employment_obligation": true,
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "ongoing",
+        "keywords": [
+          "confidentiality",
+          "confidential information",
+          "customer information",
+          "company information",
+          "NDA",
+          "after leaving"
+        ]
+      }
+    },
+    {
+      "id": "POL-016",
+      "category": "security",
+      "subcategory": "company_devices",
+      "title": "Company Laptop Requirement",
+      "description": "Employees must use company-issued laptops for accessing confidential company systems. Personal computers should not be used to access production databases.",
+      "is_active": true,
+      "requirements": {
+        "company_laptop_required_for_confidential_systems": true,
+        "personal_computer_allowed_for_production_database": false
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "ongoing",
+        "keywords": [
+          "company laptop",
+          "personal computer",
+          "production database",
+          "confidential systems",
+          "device security"
+        ]
+      }
+    },
+    {
+      "id": "POL-017",
+      "category": "benefits",
+      "subcategory": "relocation",
+      "title": "Relocation Allowance",
+      "description": "The company provides a one-time relocation allowance of up to Rs 25000 for employees who are required to move to another city for business purposes.",
+      "is_active": true,
+      "benefit": {
+        "type": "allowance",
+        "amount": 25000,
+        "currency": "INR",
+        "frequency": "one_time"
+      },
+      "eligibility": {
+        "required_for_business_purposes": true,
+        "requires_city_change": true
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "one_time",
+        "keywords": [
+          "relocation",
+          "relocation allowance",
+          "moving",
+          "transfer",
+          "business relocation"
+        ]
+      }
+    },
+    {
+      "id": "POL-018",
+      "category": "compensation",
+      "subcategory": "overtime",
+      "title": "Overtime Approval",
+      "description": "Employees working overtime must obtain approval from their manager before performing the additional work. Overtime without prior approval may not qualify for compensation.",
+      "is_active": true,
+      "requirements": {
+        "manager_approval_required": true,
+        "approval_timing": "before_overtime"
+      },
+      "compensation": {
+        "unapproved_overtime_eligible": false,
+        "qualification": "may not qualify for compensation"
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "event_based",
+        "keywords": [
+          "overtime",
+          "OT",
+          "additional work",
+          "overtime approval",
+          "overtime compensation"
+        ]
+      }
+    },
+    {
+      "id": "POL-019",
+      "category": "payroll",
+      "subcategory": "salary_payment",
+      "title": "Salary Payment Date",
+      "description": "Salary is paid on the last working day of each month. If the last working day falls on a public holiday, salary will normally be processed on the preceding working day.",
+      "is_active": true,
+      "payment_schedule": {
+        "standard": "last_working_day_of_month",
+        "public_holiday_adjustment": "preceding_working_day"
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "monthly",
+        "keywords": [
+          "salary",
+          "payday",
+          "salary date",
+          "payroll",
+          "last working day",
+          "public holiday"
+        ]
+      }
+    },
+    {
+      "id": "POL-020",
+      "category": "benefits",
+      "subcategory": "learning_bonus",
+      "title": "Annual Learning Bonus",
+      "description": "Employees are eligible for a Rs 10000 annual learning bonus after completing at least one approved professional certification during the financial year.",
+      "is_active": true,
+      "benefit": {
+        "type": "bonus",
+        "amount": 10000,
+        "currency": "INR",
+        "frequency": "annual"
+      },
+      "eligibility": {
+        "minimum_approved_certifications_per_financial_year": 1
+      },
+      "filters": {
+        "employee_type": ["all"],
+        "frequency": "annual",
+        "keywords": [
+          "learning bonus",
+          "certification",
+          "professional certification",
+          "education bonus",
+          "annual bonus"
+        ]
+      }
+    }
+  ],
+  
+  "global_filters": {
+    "is_active": [
+      true,
+      false
+    ],
+    "categories": [
+      "leave",
+      "work_arrangement",
+      "work_schedule",
+      "benefits",
+      "employment",
+      "compensation",
+      "security",
+      "payroll"
+    ],
+    "employee_types": [
+      "all",
+      "new_employee",
+      "probation",
+      "regular"
+    ],
+    "frequencies": [
+      "daily",
+      "weekly",
+      "monthly",
+      "annual",
+      "ongoing",
+      "event_based",
+      "one_time",
+      "initial_employment"
+    ],
+    "currency": "INR"
+  }
+}
