@@ -9,7 +9,9 @@ from langchain_text_splitters import (
     TokenTextSplitter,
 )
 
-from sample_document import (
+from langchain_core.documents import Document
+
+from sample_documents import (
     PLAIN_TEXT,
     MARKDOWN_TEXT,
     HTML_TEXT,
@@ -253,6 +255,136 @@ def language_aware_splitter():
     )
 
 
+# ============================================================
+# 9. DOCUMENT OBJECTS + METADATA
+# ============================================================
+
+def document_based_chunking():
+    """
+    Demonstrate splitting LangChain Document objects.
+
+    This is particularly useful for RAG because metadata can
+    be preserved alongside the chunks.
+    """
+
+    documents = [
+        Document(
+            page_content=PLAIN_TEXT,
+            metadata={
+                "source": "rag-introduction.txt",
+                "document_type": "text",
+                "topic": "RAG and chunking",
+            },
+        )
+    ]
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50,
+    )
+
+    chunks = splitter.split_documents(documents)
+
+    display_chunks(
+        "9. Document-Based Chunking With Metadata",
+        chunks,
+    )
+
+
+# ============================================================
+# 10. COMPARE DIFFERENT CHUNK SIZES
+# ============================================================
+
+def compare_chunk_sizes():
+    """
+    Demonstrate how chunk_size affects the number of chunks.
+    """
+
+    print("\n")
+    print("=" * 80)
+    print("10. COMPARING DIFFERENT CHUNK SIZES")
+    print("=" * 80)
+
+    for chunk_size in [200, 500, 1000]:
+
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=50,
+        )
+
+        chunks = splitter.split_text(PLAIN_TEXT)
+
+        print(
+            f"chunk_size={chunk_size:4} "
+            f"-> {len(chunks):3} chunks"
+        )
+
+
+# ============================================================
+# 11. COMPARE DIFFERENT OVERLAP VALUES
+# ============================================================
+
+def compare_chunk_overlap():
+    """
+    Demonstrate how chunk overlap affects chunk boundaries.
+    """
+
+    print("\n")
+    print("=" * 80)
+    print("11. COMPARING DIFFERENT CHUNK OVERLAPS")
+    print("=" * 80)
+
+    for overlap in [0, 20, 50, 100]:
+
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=overlap,
+        )
+
+        chunks = splitter.split_text(PLAIN_TEXT)
+
+        print(
+            f"chunk_overlap={overlap:3} "
+            f"-> {len(chunks):3} chunks"
+        )
+
+
+# ============================================================
+# 12. SHOW CHUNK LENGTHS
+# ============================================================
+
+def analyze_chunks():
+    """
+    Analyze the size of generated chunks.
+
+    This is useful when tuning a RAG pipeline.
+    """
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50,
+    )
+
+    chunks = splitter.split_text(PLAIN_TEXT)
+
+    print("\n")
+    print("=" * 80)
+    print("12. CHUNK SIZE ANALYSIS")
+    print("=" * 80)
+
+    lengths = [len(chunk) for chunk in chunks]
+
+    print(f"Number of chunks : {len(chunks)}")
+    print(f"Smallest chunk   : {min(lengths)} characters")
+    print(f"Largest chunk    : {max(lengths)} characters")
+    print(f"Average chunk    : {sum(lengths) / len(lengths):.2f} characters")
+
+    print("\nIndividual chunk sizes:")
+
+    for index, length in enumerate(lengths, start=1):
+        print(f"Chunk {index:3}: {length:4} characters")
+
+
 
 # ============================================================
 # MAIN PROGRAM
@@ -291,6 +423,16 @@ def main():
     # Language-aware splitting
     language_aware_splitter()
 
+    # RAG-style Document objects
+    document_based_chunking()
+
+    # Experiment with parameters
+    compare_chunk_sizes()
+
+    compare_chunk_overlap()
+
+    # Analyze resulting chunks
+    analyze_chunks()
 
 
 if __name__ == "__main__":
