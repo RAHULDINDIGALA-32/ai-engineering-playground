@@ -71,6 +71,65 @@ def character_text_splitter():
     )
 
 
+# ============================================================
+# 2. RECURSIVE CHARACTER TEXT SPLITTER
+# ============================================================
+
+def recursive_character_splitter():
+    """
+    General-purpose splitter.
+
+    It tries separators recursively to keep related text together.
+    """
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50,
+        length_function=len,
+        separators=[
+            "\n\n",
+            "\n",
+            ". ",
+            " ",
+            "",
+        ],
+    )
+
+    chunks = splitter.split_text(PLAIN_TEXT)
+
+    display_chunks(
+        "2. RecursiveCharacterTextSplitter",
+        chunks,
+    )
+
+
+# ============================================================
+# 3. TOKEN TEXT SPLITTER
+# ============================================================
+
+def token_text_splitter():
+    """
+    Split text according to tokens instead of characters.
+
+    Useful when your model has token-based context limits.
+    """
+
+    splitter = TokenTextSplitter(
+        chunk_size=100,
+        chunk_overlap=20,
+    )
+
+    chunks = splitter.split_text(PLAIN_TEXT)
+
+    display_chunks(
+        "3. TokenTextSplitter",
+        chunks,
+    )
+
+
+# ============================================================
+# MAIN PROGRAM
+# ============================================================
 
 def main():
 
@@ -78,10 +137,18 @@ def main():
     print("LANGCHAIN TEXT CHUNKING DEMONSTRATION")
     print("=" * 80)
 
-    print(f"\nOriginal document length: {len(PLAIN_TEXT)} characters")
+    print("\nOriginal document length:")
+    print(f"{len(PLAIN_TEXT)} characters")
 
     # Basic character splitting
     character_text_splitter()
+
+    # Recommended general-purpose approach
+    recursive_character_splitter()
+
+    # Token-based splitting
+    token_text_splitter()
+
 
 
 if __name__ == "__main__":

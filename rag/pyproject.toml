@@ -11,4 +11,5 @@ dependencies = [
     "numpy>=2.4.6",
     "qdrant-client>=1.19.0",
     "sentence-transformers>=5.7.0",
+    "tiktoken>=0.14.0",
 ]
