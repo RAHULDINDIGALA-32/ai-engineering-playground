@@ -10,7 +10,12 @@ from langchain_text_splitters import (
 )
 
 from sample_document import (
-    PLAIN_TEXT
+    PLAIN_TEXT,
+    MARKDOWN_TEXT,
+    HTML_TEXT,
+    PYTHON_CODE,
+    JSON_DATA,
+    JS_CODE
 )
 
 
@@ -126,6 +131,128 @@ def token_text_splitter():
         chunks,
     )
 
+# ============================================================
+# 4. MARKDOWN HEADER SPLITTER
+# ============================================================
+
+def markdown_header_splitter():
+    """
+    Split Markdown according to its heading structure.
+    """
+    headers_to_split_on = [
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+    ]
+
+    splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=headers_to_split_on
+    )
+
+    chunks = splitter.split_text(MARKDOWN_TEXT)
+
+    display_chunks(
+        "4. MarkdownHeaderTextSplitter",
+        chunks,
+    )
+
+
+# ============================================================
+# 5. HTML HEADER SPLITTER
+# ============================================================
+
+def html_header_splitter():
+    """
+    Split HTML based on heading tags.
+    """
+    headers_to_split_on = [
+        ("h1", "Header 1"),
+        ("h2", "Header 2"),
+        ("h3", "Header 3"),
+    ]
+
+    splitter = HTMLHeaderTextSplitter(
+        headers_to_split_on=headers_to_split_on
+    )
+
+    chunks = splitter.split_text(HTML_TEXT)
+
+    display_chunks(
+        "5. HTMLHeaderTextSplitter",
+        chunks,
+    )
+
+
+# ============================================================
+# 6. PYTHON CODE TEXT SPLITTER
+# ============================================================
+
+def python_code_splitter():
+    """
+    Split Python source code.
+
+    This splitter is designed specifically for Python code.
+    """
+    splitter = PythonCodeTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50,
+    )
+
+    chunks = splitter.split_text(PYTHON_CODE)
+
+    display_chunks(
+        "6. PythonCodeTextSplitter",
+        chunks,
+    )
+
+
+# ============================================================
+# 7. RECURSIVE JSON SPLITTER
+# ============================================================
+
+def recursive_json_splitter():
+    """
+    Split structured JSON data recursively.
+    """
+
+    splitter = RecursiveJsonSplitter(
+        max_chunk_size=500
+    )
+
+    chunks = splitter.split_json(JSON_DATA)
+
+    display_chunks(
+        "7. RecursiveJsonSplitter",
+        chunks,
+    )
+
+
+# ============================================================
+# 8. LANGUAGE-AWARE SPLITTER
+# ============================================================
+
+def language_aware_splitter():
+    """
+    Demonstrate RecursiveCharacterTextSplitter using a language.
+
+    LangChain provides language-aware separators for several
+    programming languages.
+    """
+
+    splitter = RecursiveCharacterTextSplitter.from_language(
+        language=Language.JS,
+        chunk_size=300,
+        chunk_overlap=50,
+    )
+
+    chunks = splitter.split_text(JS_CODE)
+
+    display_chunks(
+        "8. Language-Aware Recursive Splitter",
+        chunks,
+    )
+
+
 
 # ============================================================
 # MAIN PROGRAM
@@ -148,6 +275,21 @@ def main():
 
     # Token-based splitting
     token_text_splitter()
+
+    # Markdown
+    markdown_header_splitter()
+
+    # HTML
+    html_header_splitter()
+
+    # Python source code
+    python_code_splitter()
+
+    # JSON
+    recursive_json_splitter()
+
+    # Language-aware splitting
+    language_aware_splitter()
 
 
 

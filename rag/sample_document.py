@@ -104,3 +104,229 @@ documents and real user questions.
 """
 
 
+MARKDOWN_TEXT = """
+# LangChain and RAG
+
+LangChain is a framework for building applications powered by
+large language models.
+
+## Document Processing
+
+Documents need to be loaded and processed before they can be used
+by a RAG application.
+
+### Document Loading
+
+Documents may come from PDFs, websites, databases, or text files.
+
+### Document Chunking
+
+Large documents are divided into smaller chunks.
+
+Chunk size and overlap are important parameters.
+
+## Retrieval
+
+After chunking, the chunks are converted into embeddings.
+
+### Vector Database
+
+Embeddings can be stored in a vector database.
+
+### Similarity Search
+
+User questions can be compared with stored embeddings.
+
+## Generation
+
+Retrieved chunks are passed to the language model as context.
+"""
+
+
+HTML_TEXT = """
+    <html>
+        <body>
+
+            <h1>LangChain and RAG</h1>
+
+            <p>
+                LangChain is a framework for building applications
+                powered by large language models.
+            </p>
+
+            <h2>Document Processing</h2>
+
+            <p>
+                Documents need to be loaded and processed before they
+                can be used in a RAG application.
+            </p>
+
+            <h3>Document Loading</h3>
+
+            <p>
+                Documents may come from PDFs, websites, databases,
+                and text files.
+            </p>
+
+            <h3>Document Chunking</h3>
+
+            <p>
+                Large documents are divided into smaller chunks.
+            </p>
+
+            <h2>Retrieval</h2>
+
+            <p>
+                Chunks are converted into embeddings and stored in
+                a vector database.
+            </p>
+
+            <h2>Generation</h2>
+
+            <p>
+                Retrieved chunks are passed to the language model
+                as context.
+            </p>
+
+        </body>
+    </html>
+    """
+
+
+PYTHON_CODE = '''
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
+class DocumentProcessor:
+
+    def __init__(self, chunk_size=500, chunk_overlap=50):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+
+    def create_splitter(self):
+        return RecursiveCharacterTextSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+        )
+
+    def split_document(self, text):
+        splitter = self.create_splitter()
+        return splitter.split_text(text)
+
+    def process_documents(self, documents):
+        results = []
+
+        for document in documents:
+            chunks = self.split_document(document)
+            results.extend(chunks)
+
+        return results
+
+
+def load_document(path):
+    with open(path, "r", encoding="utf-8") as file:
+        return file.read()
+
+
+def main():
+    processor = DocumentProcessor(
+        chunk_size=500,
+        chunk_overlap=50,
+    )
+
+    text = load_document("document.txt")
+
+    chunks = processor.split_document(text)
+
+    for index, chunk in enumerate(chunks):
+        print(f"Chunk {index + 1}")
+        print(chunk)
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+
+JSON_DATA = {
+        "application": {
+            "name": "RAG Application",
+            "description": (
+                "An application that retrieves relevant document "
+                "chunks and uses them as context for a language model."
+            ),
+            "document_processing": {
+                "loading": {
+                    "formats": [
+                        "PDF",
+                        "HTML",
+                        "Markdown",
+                        "TXT",
+                        "DOCX",
+                    ]
+                },
+                "chunking": {
+                    "strategies": [
+                        "CharacterTextSplitter",
+                        "RecursiveCharacterTextSplitter",
+                        "TokenTextSplitter",
+                        "MarkdownHeaderTextSplitter",
+                        "HTMLHeaderTextSplitter",
+                    ],
+                    "parameters": {
+                        "chunk_size": 500,
+                        "chunk_overlap": 50,
+                    },
+                },
+            },
+            "retrieval": {
+                "embedding_model": "Example Embedding Model",
+                "vector_database": "FAISS",
+                "search_type": "similarity",
+                "top_k": 5,
+            },
+            "generation": {
+                "model": "Example Language Model",
+                "temperature": 0.0,
+                "context_window": 8192,
+            },
+        }
+    }
+
+
+JS_CODE = """
+function createSplitter(chunkSize, chunkOverlap) {
+    return {
+        chunkSize: chunkSize,
+        chunkOverlap: chunkOverlap
+    };
+}
+
+function processDocument(document) {
+    const splitter = createSplitter(500, 50);
+
+    const chunks = splitter.split(document);
+
+    for (const chunk of chunks) {
+        console.log(chunk);
+    }
+
+    return chunks;
+}
+
+class DocumentProcessor {
+    constructor() {
+        this.documents = [];
+    }
+
+    addDocument(document) {
+        this.documents.push(document);
+    }
+
+    process() {
+        return this.documents.map(
+            document => processDocument(document)
+        );
+    }
+}
+"""
