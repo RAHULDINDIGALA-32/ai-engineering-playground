@@ -15,7 +15,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from rag_iter_4 import rag_pipeline as rag
+#from rag_iter_4 import rag_pipeline as rag
+
+
+RAG_MODULE_NAME = "rag_iter_4"
+rag = importlib.import_module(RAG_MODULE_NAME)
 
 # --------------------------------------------------------------------------- 
 # Logging
@@ -31,12 +35,18 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
+EXACT_REFUSAL = "I don't know based on the provided context."
+
 DEFAULT_MIN_RECALL = 0.85
 DEFAULT_MIN_PRECISION = 0.0  # informational by default; set >0 to gate on it
 DEFAULT_MIN_COMPLETENESS = 0.75
 DEFAULT_MIN_PASS_RATE = 0.85
 DEFAULT_MAX_FORBIDDEN_VIOLATION_RATE = 0.0  # zero tolerance by default
 
+JUDGE_TEMPERATURE = 0
+JUDGE_MAX_TOKENS = 500
+JUDGE_MAX_RETRIES = 3
+JUDGE_RETRY_BACKOFF_S = 2.0
 
 
 # =============================================================================
@@ -135,7 +145,7 @@ def run_ingest() -> None:
                 f"--ingest requires '{attr}' on the RAG module but it was not found."
             )
     logger.info("Ingesting knowledge base into Qdrant ...")
-    documents = rag.load_knowledge_base()
+    documents = rag.load_knowledge_base("knowledge_base.json")
     rag.create_collection(recreate=True)
     rag.create_payload_indexes()
     rag.ingest_knowledge_base(documents)
@@ -196,7 +206,135 @@ def compute_retrieval_metrics(
     )
 
 
-#==============================================================================
+# =============================================================================
+# LLM-as-judge for generation quality
+# =============================================================================
+JUDGE_SYSTEM_PROMPT = """
+You are a strict, impartial evaluator of a RAG assistant's answer. You are
+NOT the assistant being evaluated -- you only grade its output.
+ 
+You will be given:
+  - RETRIEVED_CONTEXT: the exact policy context the assistant had access to.
+  - REQUIRED_FACTS: facts a correct answer must convey (from a human-authored
+    ground truth; wording may differ from the answer, only meaning must match).
+  - FORBIDDEN_CONTENT: things the answer must NOT contain or claim.
+  - QUESTION and ANSWER: what was asked and what the assistant said.
+ 
+Score along three independent dimensions:
+ 
+1. faithful (boolean): true only if every factual claim in ANSWER is
+   supported by RETRIEVED_CONTEXT. An answer that correctly refuses, or that
+   sticks strictly to what RETRIEVED_CONTEXT supports, is faithful. An
+   answer that introduces outside knowledge, invents numbers/conditions, or
+   states something contradicted by RETRIEVED_CONTEXT is NOT faithful.
+ 
+2. completeness (float 0.0-1.0): the fraction of REQUIRED_FACTS whose
+   meaning is actually conveyed in ANSWER (paraphrases count; omissions do
+   not). If REQUIRED_FACTS is empty, return 1.0.
+ 
+3. forbidden_violated (boolean): true if ANSWER contains, states, confirms,
+   or implies any of FORBIDDEN_CONTENT. Be strict: agreeing with a false
+   premise in the question, or stating a fact even briefly, counts as a
+   violation.
+ 
+Respond with ONLY a single JSON object, no prose, no markdown fences, in
+exactly this shape:
+{"faithful": true|false, "completeness": 0.0-1.0, "missing_facts": ["..."], "forbidden_violated": true|false, "notes": "one short sentence"}
+""".strip()
+ 
+ 
+def _extract_json_object(text: str) -> dict:
+    """Judges sometimes wrap JSON in prose or code fences despite instructions."""
+    text = text.strip()
+    text = re.sub(r"^```(json)?", "", text).strip()
+    text = re.sub(r"```$", "", text).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        raise
+ 
+ 
+def judge_generation(
+    query: str,
+    answer: str,
+    retrieved_context: str,
+    required_facts: list[str],
+    forbidden_content: list[str],
+    judge_model: str,
+) -> tuple[dict, Optional[str]]:
+    """
+    Calls the judge LLM with retries/backoff. Returns (result_dict, error).
+    On unrecoverable failure, returns a conservative fail-safe result (so a
+    judge outage shows up as a *failure*, never a silent pass) plus an error
+    string explaining why.
+    """
+    user_prompt = f"""
+RETRIEVED_CONTEXT:
+{retrieved_context if retrieved_context.strip() else "(no context was retrieved)"}
+ 
+REQUIRED_FACTS:
+{json.dumps(required_facts, ensure_ascii=False)}
+ 
+FORBIDDEN_CONTENT:
+{json.dumps(forbidden_content, ensure_ascii=False)}
+ 
+QUESTION:
+{query}
+ 
+ANSWER:
+{answer}
+""".strip()
+ 
+    last_error: Optional[str] = None
+    for attempt in range(1, JUDGE_MAX_RETRIES + 1):
+        try:
+            response = rag.llm_client.chat.completions.create(
+                model=judge_model,
+                messages=[
+                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=JUDGE_TEMPERATURE,
+                max_tokens=JUDGE_MAX_TOKENS,
+            )
+            raw = response.choices[0].message.content.strip()
+            parsed = _extract_json_object(raw)
+ 
+            # Normalize / validate shape defensively.
+            result = {
+                "faithful": bool(parsed.get("faithful", False)),
+                "completeness": float(parsed.get("completeness", 0.0)),
+                "missing_facts": list(parsed.get("missing_facts", []) or []),
+                "forbidden_violated": bool(parsed.get("forbidden_violated", True)),
+                "notes": str(parsed.get("notes", "")),
+            }
+            result["completeness"] = max(0.0, min(1.0, result["completeness"]))
+            return result, None
+ 
+        except Exception as exc:  # noqa: BLE001 - network/parsing errors both handled the same way
+            last_error = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "Judge call failed (attempt %d/%d): %s",
+                attempt, JUDGE_MAX_RETRIES, last_error,
+            )
+            if attempt < JUDGE_MAX_RETRIES:
+                time.sleep(JUDGE_RETRY_BACKOFF_S * attempt)
+ 
+    # Fail-safe: never let a broken judge look like a pass.
+    fail_safe = {
+        "faithful": False,
+        "completeness": 0.0,
+        "missing_facts": required_facts,
+        "forbidden_violated": True,
+        "notes": "Judge unavailable; scored as failure (fail-safe).",
+    }
+    return fail_safe, last_error
+ 
+ 
+# =============================================================================
 # Case execution
 # =============================================================================
 def run_case(case: dict, top_k: int, judge_model: str) -> CaseResult:
@@ -221,17 +359,81 @@ def run_case(case: dict, top_k: int, judge_model: str) -> CaseResult:
             retrieved_ids, expected_ids, expected_top1_id, top_k
         )
  
+        # --- Generation ----------------------------------------------------#
+        if not results:
+            answer = EXACT_REFUSAL
+            context = ""
+        else:
+            context = rag.extract_context(results)
+            answer = rag.call_llm(query=query, context=context)
+ 
+        # --- Refusal correctness (deterministic, exact-match) -------------- #
+        is_exact_refusal = answer.strip() == EXACT_REFUSAL
+        if refusal_expected:
+            refusal_correct = is_exact_refusal
+            if not refusal_correct:
+                fail_reasons.append(
+                    "expected exact refusal string but got a substantive answer"
+                )
+        else:
+            # Over-refusal (answering "I don't know" when it shouldn't) is
+            # also a failure mode worth flagging.
+            refusal_correct = not is_exact_refusal
+            if not refusal_correct:
+                fail_reasons.append("model refused when an answer was expected")
+ 
+        # --- LLM-judged dimensions ----------------------------------------#
+        judge_result, judge_error = judge_generation(
+            query=query,
+            answer=answer,
+            retrieved_context=context,
+            required_facts=required_facts,
+            forbidden_content=forbidden_content,
+            judge_model=judge_model,
+        )
+ 
+        generation = GenerationScore(
+            refusal_expected=refusal_expected,
+            refusal_correct=refusal_correct,
+            faithful=judge_result["faithful"],
+            completeness=judge_result["completeness"],
+            missing_facts=judge_result["missing_facts"],
+            forbidden_violated=judge_result["forbidden_violated"],
+            judge_notes=judge_result["notes"],
+            judge_error=judge_error,
+        )
+ 
+        if not judge_result["faithful"]:
+            fail_reasons.append("answer not faithful to retrieved context")
+        if judge_result["forbidden_violated"]:
+            fail_reasons.append("answer contains forbidden content")
+        if not refusal_expected and judge_result["completeness"] < DEFAULT_MIN_COMPLETENESS:
+            fail_reasons.append(
+                f"completeness {judge_result['completeness']:.2f} below "
+                f"{DEFAULT_MIN_COMPLETENESS}"
+            )
+        if retrieval.recall_at_k is not None and retrieval.recall_at_k < 1.0:
+            fail_reasons.append(
+                f"retrieval recall@{top_k}={retrieval.recall_at_k:.2f} "
+                f"missed expected polic{'y' if len(expected_ids)==1 else 'ies'}"
+            )
+ 
+        passed = len(fail_reasons) == 0
+ 
         return CaseResult(
             test_id=test_id,
             query=query,
             category_type=category_type,
             difficulty=difficulty,
+            answer=answer,
             retrieval=retrieval,
+            generation=generation,
+            passed=passed,
             fail_reasons=fail_reasons,
             latency_s=time.monotonic() - start,
         )
  
-    except Exception as exc:  
+    except Exception as exc:  # noqa: BLE001 - one broken case must never kill the whole run
         logger.exception("Case %s raised an exception", test_id)
         return CaseResult(
             test_id=test_id,
@@ -256,6 +458,7 @@ def run_case(case: dict, top_k: int, judge_model: str) -> CaseResult:
             error=str(exc),
         )
  
+ 
 
 # =============================================================================
 # Aggregation & reporting
@@ -277,6 +480,21 @@ def aggregate(results: list[CaseResult]) -> dict[str, Any]:
             "recall_at_k": _safe_mean([r.retrieval.recall_at_k for r in subset]),
             "precision_at_k": _safe_mean([r.retrieval.precision_at_k for r in subset]),
             "mrr": _safe_mean([r.retrieval.reciprocal_rank for r in subset]),
+            "faithfulness_rate": _safe_mean(
+                [1.0 if r.generation.faithful else 0.0
+                 for r in subset if r.generation.faithful is not None]
+            ),
+            "completeness": _safe_mean(
+                [r.generation.completeness for r in subset]
+            ),
+            "forbidden_violation_rate": _safe_mean(
+                [1.0 if r.generation.forbidden_violated else 0.0
+                 for r in subset if r.generation.forbidden_violated is not None]
+            ),
+            "refusal_correct_rate": _safe_mean(
+                [1.0 if r.generation.refusal_correct else 0.0
+                 for r in subset if r.generation.refusal_correct is not None]
+            ),
             "n_errors": sum(1 for r in subset if r.error),
         }
  
@@ -284,7 +502,7 @@ def aggregate(results: list[CaseResult]) -> dict[str, Any]:
         "overall": summarize(results),
         "by_category_type": {cat: summarize(rs) for cat, rs in sorted(by_category.items())},
     }
- 
+
  
 def _fmt(x: Optional[float], pct: bool = True) -> str:
     if x is None:
@@ -481,6 +699,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     write_json_report(results, agg, str(out_dir / f"rag_eval_{timestamp}.json"))
+ 
     violations = check_thresholds(agg, args)
     if violations:
         print("THRESHOLD VIOLATIONS (CI gate failed):")
