@@ -4,7 +4,7 @@
     "version": "1.0",
     "description": "Ground-truth test set for evaluating the Qdrant + RAG pipeline over knowledge_base.json (20 HR policies). Designed to score both retrieval quality (recall/precision/MRR of expected_relevant_policy_ids against search_db results) and generation quality (faithfulness, completeness, refusal correctness of rag_pipeline() (from rag_iter_4.py) output against ground_truth_answer / required_facts / forbidden_content).",
     "knowledge_base_version": "policies POL-001 to POL-020, all is_active=true",
-    "total_cases": 45,
+    "total_cases": 46,
     "category_type_definitions": {
       "factual_simple": "Single-fact lookup answerable from exactly one policy.",
       "conditional_eligibility": "Requires applying an eligibility rule/threshold correctly, not just retrieving text.",
