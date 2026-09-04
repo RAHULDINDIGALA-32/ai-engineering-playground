@@ -15,11 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-#from rag_iter_4 import rag_pipeline as rag
+import rag_iter_4 as rag
 
-
-RAG_MODULE_NAME = "rag_iter_4"
-rag = importlib.import_module(RAG_MODULE_NAME)
+#RAG_MODULE_NAME = "rag_iter_4"
+#rag = importlib.import_module(RAG_MODULE_NAME)
 
 # --------------------------------------------------------------------------- 
 # Logging
@@ -44,7 +43,7 @@ DEFAULT_MIN_PASS_RATE = 0.85
 DEFAULT_MAX_FORBIDDEN_VIOLATION_RATE = 0.0  # zero tolerance by default
 
 JUDGE_TEMPERATURE = 0
-JUDGE_MAX_TOKENS = 500
+JUDGE_MAX_TOKENS = 5000
 JUDGE_MAX_RETRIES = 3
 JUDGE_RETRY_BACKOFF_S = 2.0
 
@@ -366,6 +365,7 @@ def run_case(case: dict, top_k: int, judge_model: str) -> CaseResult:
         else:
             context = rag.extract_context(results)
             answer = rag.call_llm(query=query, context=context)
+            time.sleep(5)
  
         # --- Refusal correctness (deterministic, exact-match) -------------- #
         is_exact_refusal = answer.strip() == EXACT_REFUSAL
@@ -391,6 +391,8 @@ def run_case(case: dict, top_k: int, judge_model: str) -> CaseResult:
             forbidden_content=forbidden_content,
             judge_model=judge_model,
         )
+
+        time.sleep(5)
  
         generation = GenerationScore(
             refusal_expected=refusal_expected,
@@ -671,21 +673,22 @@ def main() -> int:
     )
  
     results: list[CaseResult] = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {
-            pool.submit(run_case, case, args.top_k, args.judge_model): case["test_id"]
-            for case in cases
-        }
-        completed = 0
-        for future in concurrent.futures.as_completed(futures):
-            test_id = futures[future]
-            result = future.result()
-            results.append(result)
-            completed += 1
-            status = "PASS" if result.passed else "FAIL"
-            logger.info(
-                "[%3d/%3d] %-8s %-8s %.2fs",
-                completed, len(cases), status, test_id, result.latency_s,
+    completed = 0 
+    for case in cases: 
+        result = run_case( 
+            case, 
+            args.top_k, 
+            args.judge_model, 
+            ) 
+        
+        results.append(result) 
+        completed += 1 
+        status = "PASS" if result.passed else "FAIL" 
+        logger.info( 
+            "[%3d/%3d] %-8s %-8s %.2fs", 
+            completed, len(cases), 
+            status, case["test_id"], 
+            result.latency_s, 
             )
  
     # Keep report ordering stable / matching input order.
