@@ -4,10 +4,24 @@ from graph.graph import build_graph
 from models import OrderStatus
 
 
+def _print_last_assistant_message(state):
+    messages = state.get("messages", [])
+    if not messages:
+        return
+    last_message = messages[-1]
+    if isinstance(last_message, dict):
+        content = last_message.get("content")
+    else:
+        content = getattr(last_message, "content", str(last_message))
+    if content:
+        print(f"Assistant: {content}")
+
+
 def main() -> None:
     graph = build_graph()
     state = {
         "messages": [],
+        "intent": None,
         "order_items": [],
         "status": None,
         "partial_order_decision": None,
@@ -29,27 +43,26 @@ def main() -> None:
             break
 
         state["last_user_message"] = user_input
-        result = graph.invoke(state)
-        state = result
+        state = graph.invoke(state)
 
         final_status = state.get("status")
         final_result = state.get("final_result")
-        if final_status in {OrderStatus.ORDER_COMPLETED, OrderStatus.ORDER_FAILED, OrderStatus.ORDER_CANCELLED}:
+        if final_status in {
+            OrderStatus.ORDER_COMPLETED,
+            OrderStatus.ORDER_FAILED,
+            OrderStatus.ORDER_CANCELLED,
+        }:
+            _print_last_assistant_message(state)
             if final_result:
                 print(f"Final result: {final_result}")
             else:
-                print(f"Status: {final_status.value if hasattr(final_status, 'value') else final_status}")
+                print(
+                    f"Status: {final_status.value if hasattr(final_status, 'value') else final_status}"
+                )
             print("Order session closed.")
             break
 
-        if state.get("status") == OrderStatus.ORDER_PARTIAL:
-            print("Assistant: We currently have a partial order available. Would you like to proceed with the available items or place a different order?")
-        elif state.get("status") == OrderStatus.ORDER_NA:
-            print("Assistant: That order is unavailable. Please submit a new order.")
-        elif state.get("status") == OrderStatus.ORDER_CONFIRMED:
-            print("Assistant: Your order has been confirmed.")
-        else:
-            print("Assistant: I'm Order-Pilot, a restaurant ordering assistant. I can help you place food orders, but I can't assist with general questions.")
+        _print_last_assistant_message(state)
 
 
 if __name__ == "__main__":

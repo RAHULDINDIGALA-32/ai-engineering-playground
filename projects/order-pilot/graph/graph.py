@@ -6,9 +6,10 @@ from models import OrderStatus
 from nodes.cook import cook_node
 from nodes.order_confirmation import order_confirmation_node
 from nodes.order_parser import semantic_parser_node
-from nodes.response import generate_response
+from nodes.response import generate_response as fallback_generate_response
 from nodes.serve import serve_node
 from nodes.user_decision import partial_decision_node
+from services.llm_service import LLMService
 from state import OrderState
 from graph.routers import (
     route_after_confirmation,
@@ -36,16 +37,42 @@ def _empty_state() -> OrderState:
 
 def response_node(state):
     text = state.get("last_user_message") or ""
-    if state.get("status") == OrderStatus.ORDER_COMPLETED:
-        reply = generate_response(state, "success")
-    elif state.get("status") == OrderStatus.ORDER_FAILED:
-        reply = generate_response(state, "failure")
-    elif state.get("status") == OrderStatus.ORDER_PARTIAL:
-        reply = generate_response(state, "partial")
+    status = state.get("status")
+
+    if status == OrderStatus.ORDER_COMPLETED:
+        kind = "success"
+    elif status == OrderStatus.ORDER_FAILED:
+        kind = "failure"
+    elif status == OrderStatus.ORDER_PARTIAL:
+        kind = "partial"
+    elif state.get("intent") == "unrelated":
+        kind = "unrelated"
     else:
-        reply = generate_response(
-            state, "unrelated" if "what is" in text.lower() else "default"
-        )
+        kind = "default"
+
+    context = {
+        "intent": state.get("intent"),
+        "status": status.value if hasattr(status, "value") else status,
+        "items": [
+            {
+                "dish_name": item.dish_name,
+                "requested_quantity": item.requested_quantity,
+                "available_quantity": getattr(item, "available_quantity", 0),
+                "accepted_quantity": getattr(item, "accepted_quantity", 0),
+            }
+            for item in state.get("order_items", [])
+        ],
+    }
+
+    llm = LLMService()
+    if llm.available:
+        try:
+            reply = llm.generate_response(kind, context)
+        except Exception:
+            reply = fallback_generate_response(state, kind)
+    else:
+        reply = fallback_generate_response(state, kind)
+
     state["messages"] = state.get("messages", []) + [
         {"role": "assistant", "content": reply}
     ]

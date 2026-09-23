@@ -10,6 +10,7 @@ from models import OrderItem, OrderStatus
 
 class OrderState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
+    intent: str | None
     order_items: list[OrderItem]
     status: OrderStatus | None
     partial_order_decision: str | None

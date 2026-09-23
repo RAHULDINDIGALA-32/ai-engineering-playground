@@ -1,12 +1,13 @@
 import pytest
 
 from models import OrderItem, OrderStatus
-from nodes.order_parser import parse_order_input
+from nodes.order_parser import parse_order_input, semantic_parser_node
 from nodes.order_confirmation import confirm_order
 from nodes.user_decision import decide_partial_order
 from services.menu_service import get_available_quantity
 from nodes.cook import CookSimulator
 from nodes.serve import ServeSimulator
+from graph.graph import response_node
 
 
 @pytest.mark.parametrize(
@@ -34,6 +35,24 @@ def test_order_parser_unrelated_input():
 def test_order_parser_missing_quantity():
     parsed = parse_order_input("I want pizza.")
     assert parsed["intent"] == "incomplete_order"
+
+
+def test_semantic_parser_sets_intent_and_items():
+    state = {"last_user_message": "I want 2 burgers and 1 pizza"}
+    updated = semantic_parser_node(state)
+    assert updated["intent"] == "food_order"
+    assert len(updated["order_items"]) == 2
+
+
+def test_response_node_creates_assistant_message():
+    state = {
+        "last_user_message": "I want 2 burgers",
+        "status": OrderStatus.ORDER_PARTIAL,
+        "messages": [],
+    }
+    updated = response_node(state)
+    assert updated["messages"][-1]["role"] == "assistant"
+    assert "partial" in updated["messages"][-1]["content"].lower()
 
 
 def test_order_confirmation_fully_available():
