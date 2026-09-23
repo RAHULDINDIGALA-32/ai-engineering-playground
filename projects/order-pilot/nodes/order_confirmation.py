@@ -31,6 +31,8 @@ def confirm_order(order_items):
 
     if all(item.available_quantity >= item.requested_quantity for item in normalized):
         status = OrderStatus.ORDER_CONFIRMED
+        for item in normalized:
+            item.accepted_quantity = item.requested_quantity
     elif all(item.available_quantity == 0 for item in normalized):
         status = OrderStatus.ORDER_NA
     else:
@@ -43,9 +45,19 @@ def confirm_order(order_items):
 
 
 def order_confirmation_node(state):
+    remaining = int(state.get("order_attempts_remaining", 0))
+    if remaining <= 0:
+        return {
+            "status": OrderStatus.ORDER_FAILED,
+            "error_message": "Order attempts exhausted.",
+            "final_result": {
+                "success": False,
+                "status": OrderStatus.ORDER_FAILED.value,
+            },
+        }
+
     result = confirm_order(state.get("order_items", []))
-    state["status"] = result["status"]
-    state["order_items"] = [
+    order_items = [
         OrderItem(
             dish_name=item["dish_name"],
             requested_quantity=item["requested_quantity"],
@@ -54,4 +66,10 @@ def order_confirmation_node(state):
         )
         for item in result["order_items"]
     ]
-    return state
+    return {
+        "status": result["status"],
+        "order_items": order_items,
+        "order_attempts_remaining": remaining - 1,
+        "pending_action": "NEW_ORDER" if result["status"] == OrderStatus.ORDER_NA else None,
+        "partial_order_decision": None,
+    }

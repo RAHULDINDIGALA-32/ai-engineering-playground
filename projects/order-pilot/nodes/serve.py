@@ -19,38 +19,55 @@ class ServeSimulator:
 
 
 def serve_order(state, simulator: ServeSimulator | None = None):
-    sim = simulator or ServeSimulator()
     remaining = int(state.get("serve_attempts_remaining", 2))
-
     if remaining <= 0:
-        state["status"] = OrderStatus.ORDER_FAILED
-        state["error_message"] = "Serve attempts exhausted."
-        state["final_result"] = {
-            "success": False,
-            "status": OrderStatus.ORDER_FAILED.value,
+        return {
+            "status": OrderStatus.ORDER_FAILED,
+            "error_message": "Serve attempts exhausted.",
+            "last_serve_result": "FAIL",
+            "final_result": {
+                "success": False,
+                "status": OrderStatus.ORDER_FAILED.value,
+            },
         }
-        return state
 
-    state["serve_attempts_remaining"] = remaining - 1
-    state["status"] = OrderStatus.ORDER_SERVING
+    sim = simulator or ServeSimulator()
+    new_remaining = remaining - 1
+    operation_id = f"{state.get('session_id', 'sess')}-SERVE-{remaining:02d}"
     outcome = sim.run()
-
     if outcome == "SUCCESS":
-        state["status"] = OrderStatus.ORDER_COMPLETED
-        state["final_result"] = {
-            "success": True,
-            "status": OrderStatus.ORDER_COMPLETED.value,
+        return {
+            "serve_attempts_remaining": new_remaining,
+            "status": OrderStatus.ORDER_COMPLETED,
+            "error_message": None,
+            "last_serve_result": "SUCCESS",
+            "last_operation_id": operation_id,
+            "final_result": {
+                "success": True,
+                "status": OrderStatus.ORDER_COMPLETED.value,
+            },
         }
-        state["error_message"] = None
-    else:
-        state["status"] = OrderStatus.ORDER_FAILED
-        state["final_result"] = {
+
+    if new_remaining > 0:
+        return {
+            "serve_attempts_remaining": new_remaining,
+            "status": OrderStatus.ORDER_SERVING,
+            "error_message": "Serve failed.",
+            "last_serve_result": "FAIL",
+            "last_operation_id": operation_id,
+        }
+
+    return {
+        "serve_attempts_remaining": new_remaining,
+        "status": OrderStatus.ORDER_FAILED,
+        "error_message": "Serve failed.",
+        "last_serve_result": "FAIL",
+        "last_operation_id": operation_id,
+        "final_result": {
             "success": False,
             "status": OrderStatus.ORDER_FAILED.value,
-        }
-        state["error_message"] = "Serve failed."
-
-    return state
+        },
+    }
 
 
 def serve_node(state, simulator: ServeSimulator | None = None):

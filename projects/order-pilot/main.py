@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from graph.graph import build_graph
+from langchain_core.messages import HumanMessage
+
+from graph.graph import build_graph, empty_state
 from models import OrderStatus
 
 
@@ -19,19 +21,8 @@ def _print_last_assistant_message(state):
 
 def main() -> None:
     graph = build_graph()
-    state = {
-        "messages": [],
-        "intent": None,
-        "order_items": [],
-        "status": None,
-        "partial_order_decision": None,
-        "error_message": None,
-        "final_result": None,
-        "order_attempts_remaining": 3,
-        "cook_attempts_remaining": 2,
-        "serve_attempts_remaining": 2,
-        "last_user_message": None,
-    }
+    state = empty_state()
+    state["session_id"] = "sess-cli"
 
     print("Order-Pilot ready. Type your order or 'quit' to exit.")
     while True:
@@ -42,27 +33,26 @@ def main() -> None:
             print("Goodbye!")
             break
 
-        state["last_user_message"] = user_input
-        state = graph.invoke(state)
+        invoke_input = {
+            **state,
+            "last_user_message": user_input,
+            "messages": [HumanMessage(content=user_input)],
+        }
+        state = graph.invoke(invoke_input, {"recursion_limit": 25})
+
+        _print_last_assistant_message(state)
 
         final_status = state.get("status")
-        final_result = state.get("final_result")
         if final_status in {
             OrderStatus.ORDER_COMPLETED,
             OrderStatus.ORDER_FAILED,
             OrderStatus.ORDER_CANCELLED,
         }:
-            _print_last_assistant_message(state)
+            final_result = state.get("final_result")
             if final_result:
                 print(f"Final result: {final_result}")
-            else:
-                print(
-                    f"Status: {final_status.value if hasattr(final_status, 'value') else final_status}"
-                )
             print("Order session closed.")
             break
-
-        _print_last_assistant_message(state)
 
 
 if __name__ == "__main__":

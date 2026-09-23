@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 # ============================================================
 # LLM OUTPUT SCHEMAS
@@ -133,7 +141,7 @@ class ResponsePayload(BaseModel):
     validate the LLM result before returning it to the application.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     response: str = Field(
         ...,
@@ -145,6 +153,51 @@ class ResponsePayload(BaseModel):
     @classmethod
     def clean_response(cls, value: str) -> str:
         return value.strip()
+
+
+# ============================================================
+# ENVIRONMENT LOADING
+# ============================================================
+
+_ENV_LOADED = False
+
+
+def load_project_env() -> None:
+    """
+    Load key/value pairs from a local .env file into os.environ.
+
+    Python does not read .env automatically. Without this, GROQ_API_KEY
+    sitting in .env never reaches ChatGroq, so the service object exists
+    but `available` stays False.
+    """
+
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+
+    candidates = [
+        Path(__file__).resolve().parent.parent / ".env",
+        Path.cwd() / ".env",
+    ]
+    seen: set[Path] = set()
+    for env_path in candidates:
+        resolved = env_path.resolve()
+        if resolved in seen or not resolved.is_file():
+            continue
+        seen.add(resolved)
+        for raw_line in resolved.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip().lstrip("\ufeff")
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            if line.startswith("export "):
+                line = line[len("export ") :].strip()
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'").strip('"')
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+    _ENV_LOADED = True
 
 
 # ============================================================
@@ -196,15 +249,20 @@ class LLMService:
             ORDER_PILOT_MODEL=openai/gpt-oss-120b
         """
 
+        load_project_env()
+
         self.model_name = (
             model_name or os.getenv("ORDER_PILOT_MODEL") or self.DEFAULT_MODEL
         )
 
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        if isinstance(self.api_key, str):
+            self.api_key = self.api_key.strip().strip("'").strip('"') or None
 
         self.temperature = temperature
 
         self._chat_model: ChatGroq | None = None
+        self._load_failed = False
 
         self._load_model()
 
@@ -221,14 +279,27 @@ class LLMService:
         deterministic fallback responses where appropriate.
         """
 
+        if self._chat_model is not None or self._load_failed:
+            return
+
+        load_project_env()
+        if not self.api_key:
+            self.api_key = os.getenv("GROQ_API_KEY")
+            if isinstance(self.api_key, str):
+                self.api_key = self.api_key.strip().strip("'").strip('"') or None
+
         if not self.api_key:
             return
 
-        self._chat_model = ChatGroq(
-            model=self.model_name,
-            api_key=self.api_key,
-            temperature=self.temperature,
-        )
+        try:
+            self._chat_model = ChatGroq(
+                model=self.model_name,
+                api_key=self.api_key,
+                temperature=self.temperature,
+            )
+        except Exception:
+            self._chat_model = None
+            self._load_failed = True
 
     @property
     def available(self) -> bool:
@@ -236,6 +307,7 @@ class LLMService:
         Return whether the LLM is configured and available.
         """
 
+        self._load_model()
         return self._chat_model is not None
 
     def _require_model(self) -> ChatGroq:
@@ -454,9 +526,6 @@ class LLMService:
             )
 
         model = self._require_model()
-
-        structured_model = model.with_structured_output(ResponsePayload)
-
         messages = [
             SystemMessage(
                 content=(
@@ -479,7 +548,8 @@ class LLMService:
                     "not supported by the context.\n"
                     "9. Keep the response concise.\n"
                     "10. If the user needs to provide information, "
-                    "clearly ask for it."
+                    "clearly ask for it.\n"
+                    "11. Return only the user-facing reply."
                 )
             ),
             HumanMessage(
@@ -492,25 +562,43 @@ class LLMService:
         ]
 
         try:
+            structured_model = model.with_structured_output(ResponsePayload)
             result = structured_model.invoke(messages)
-
+            return self._validate_response(result).response
         except Exception:
-            # Response generation is presentation-layer behavior.
-            # If it fails, use a deterministic fallback rather than
-            # turning a successful business operation into a workflow
-            # failure.
-            return self._fallback_response(
-                kind,
-                normalized_context,
-            )
+            pass
 
-        validated = self._validate_response(result)
+        try:
+            result = model.invoke(messages)
+            text = self._message_text(result).strip()
+            if text:
+                return text
+        except Exception:
+            pass
 
-        return validated.response
+        return self._fallback_response(
+            kind,
+            normalized_context,
+        )
 
     # ========================================================
     # VALIDATION HELPERS
     # ========================================================
+
+    @staticmethod
+    def _message_text(result: Any) -> str:
+        content = getattr(result, "content", result)
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict) and item.get("type") == "text":
+                    parts.append(str(item.get("text") or ""))
+            return "".join(parts)
+        return str(content or "")
 
     @staticmethod
     def _validate_user_text(text: str) -> str:

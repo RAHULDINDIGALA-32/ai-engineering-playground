@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 
-from models import OrderStatus
-from services.llm_service import LLMService
+from models import OrderItem, OrderStatus
+from services.llm_service import LLMService, llm_service
 from services.menu_service import MENU, normalize_dish_name
 
 NUMBER_WORDS = {
@@ -68,20 +68,71 @@ def parse_order_input(text: str) -> dict:
     return {"intent": "ambiguous", "order_items": []}
 
 
-def semantic_parser_node(state):
+def _to_order_items(raw_items) -> list[OrderItem]:
+    items: list[OrderItem] = []
+    for item in raw_items or []:
+        if isinstance(item, OrderItem):
+            items.append(item)
+            continue
+        dish_name = normalize_dish_name(str(item.get("dish_name", "")))
+        quantity = int(item.get("requested_quantity") or item.get("quantity") or 0)
+        if not dish_name or quantity <= 0:
+            raise ValueError("Invalid order item")
+        items.append(
+            OrderItem(
+                dish_name=dish_name,
+                requested_quantity=quantity,
+            )
+        )
+    return items
+
+
+def semantic_parser_node(state, llm: LLMService | None = None):
     text = state.get("last_user_message") or ""
-    llm = LLMService()
-    if llm.available:
+    service = llm if llm is not None else llm_service
+    parsed = None
+
+    if service.available:
         try:
-            result = llm.parse_order_message(text)
-            state["intent"] = result.get("intent")
-            state["order_items"] = result.get("order_items", [])
-            state["status"] = OrderStatus.ORDER_RECEIVED
-            return state
+            parsed = service.parse_order_message(text)
         except Exception:
-            pass
-    parsed = parse_order_input(text)
-    state["intent"] = parsed.get("intent")
-    state["order_items"] = parsed.get("order_items", [])
-    state["status"] = OrderStatus.ORDER_RECEIVED
-    return state
+            parsed = None
+
+    if parsed is None:
+        parsed = parse_order_input(text)
+
+    intent = parsed.get("intent")
+    updates: dict = {
+        "intent": intent,
+        "clarification_required": intent in {"incomplete_order", "ambiguous"},
+        "partial_order_decision": None,
+    }
+
+    if intent != "food_order":
+        return updates
+
+    try:
+        order_items = _to_order_items(parsed.get("order_items", []))
+    except Exception:
+        return {
+            "intent": "incomplete_order",
+            "clarification_required": True,
+            "partial_order_decision": None,
+        }
+
+    if not order_items:
+        return {
+            "intent": "incomplete_order",
+            "clarification_required": True,
+            "partial_order_decision": None,
+        }
+
+    updates.update(
+        {
+            "order_items": order_items,
+            "status": OrderStatus.ORDER_RECEIVED,
+            "pending_action": None,
+            "error_message": None,
+        }
+    )
+    return updates
