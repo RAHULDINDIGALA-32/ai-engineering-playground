@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
 
-from ..models import OrderStatus
-from ..nodes.cook import cook_node
-from ..nodes.order_confirmation import order_confirmation_node
-from ..nodes.order_parser import parse_order_input
-from ..nodes.serve import serve_node
-from ..nodes.user_decision import decide_partial_order
-from ..state import OrderState
-from .routers import (
+from models import OrderStatus
+from nodes.cook import cook_node
+from nodes.order_confirmation import order_confirmation_node
+from nodes.order_parser import semantic_parser_node
+from nodes.response import generate_response
+from nodes.serve import serve_node
+from nodes.user_decision import partial_decision_node
+from state import OrderState
+from graph.routers import (
     route_after_confirmation,
     route_after_cook,
+    route_after_parser,
     route_after_serve,
     route_after_user_decision,
 )
@@ -32,67 +34,61 @@ def _empty_state() -> OrderState:
     }
 
 
+def response_node(state):
+    text = state.get("last_user_message") or ""
+    if state.get("status") == OrderStatus.ORDER_COMPLETED:
+        reply = generate_response(state, "success")
+    elif state.get("status") == OrderStatus.ORDER_FAILED:
+        reply = generate_response(state, "failure")
+    elif state.get("status") == OrderStatus.ORDER_PARTIAL:
+        reply = generate_response(state, "partial")
+    else:
+        reply = generate_response(
+            state, "unrelated" if "what is" in text.lower() else "default"
+        )
+    state["messages"] = state.get("messages", []) + [
+        {"role": "assistant", "content": reply}
+    ]
+    return state
+
+
 def build_graph():
     workflow = StateGraph(OrderState)
-
-    def parse_user_input(state):
-        text = state.get("last_user_message") or ""
-        parsed = parse_order_input(text)
-        state["order_items"] = parsed.get("order_items", [])
-        state["status"] = (
-            OrderStatus.ORDER_RECEIVED
-            if parsed.get("intent") == "food_order"
-            else state.get("status")
-        )
-        return state
-
-    def handle_user_decision(state):
-        text = state.get("last_user_message") or ""
-        decision = decide_partial_order(text)
-        state["partial_order_decision"] = decision
-        return state
-
-    workflow.add_node("await_order", parse_user_input)
+    workflow.add_node("semantic_parser", semantic_parser_node)
     workflow.add_node("confirm_order", order_confirmation_node)
-    workflow.add_node("user_decision", handle_user_decision)
+    workflow.add_node("user_decision", partial_decision_node)
     workflow.add_node("cook", cook_node)
     workflow.add_node("serve", serve_node)
+    workflow.add_node("response", response_node)
     workflow.add_node("end", lambda state: state)
 
-    workflow.set_entry_point("await_order")
+    workflow.set_entry_point("semantic_parser")
     workflow.add_conditional_edges(
-        "await_order",
-        route_after_confirmation,
-        {
-            "cook": "cook",
-            "user_decision": "user_decision",
-            "await_order": "await_order",
-        },
+        "semantic_parser",
+        route_after_parser,
+        {"confirm_order": "confirm_order", "response": "response"},
     )
     workflow.add_conditional_edges(
         "confirm_order",
         route_after_confirmation,
-        {
-            "cook": "cook",
-            "user_decision": "user_decision",
-            "await_order": "await_order",
-        },
+        {"cook": "cook", "user_decision": "user_decision", "response": "response"},
     )
     workflow.add_conditional_edges(
         "user_decision",
         route_after_user_decision,
-        {
-            "cook": "cook",
-            "await_order": "await_order",
-            "user_decision": "user_decision",
-        },
+        {"cook": "cook", "response": "response", "user_decision": "user_decision"},
     )
     workflow.add_conditional_edges(
-        "cook", route_after_cook, {"serve": "serve", "cook": "cook", "end": END}
+        "cook",
+        route_after_cook,
+        {"serve": "serve", "cook": "cook", "response": "response"},
     )
     workflow.add_conditional_edges(
-        "serve", route_after_serve, {"cook": "cook", "serve": "serve", "end": END}
+        "serve",
+        route_after_serve,
+        {"cook": "cook", "serve": "serve", "response": "response"},
     )
+    workflow.add_edge("response", END)
     workflow.add_edge("end", END)
     return workflow.compile()
 

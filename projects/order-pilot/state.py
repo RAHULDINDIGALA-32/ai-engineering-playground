@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import BaseMessage, add_messages
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
 
 from models import OrderItem, OrderStatus
 

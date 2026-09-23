@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from ..models import OrderStatus
+from models import OrderStatus
 
 
 class ServeSimulator:

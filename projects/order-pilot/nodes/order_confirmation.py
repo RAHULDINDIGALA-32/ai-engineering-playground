@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ..models import OrderItem, OrderStatus
-from ..services.inventory_service import InventoryService
+from models import OrderItem, OrderStatus
+from services.inventory_service import InventoryService
 
 
 def confirm_order(order_items):

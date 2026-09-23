@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import re
 
-from ..services.menu_service import MENU, normalize_dish_name
+from services.llm_service import LLMService
+from services.menu_service import MENU, normalize_dish_name
 
 NUMBER_WORDS = {
     "one": 1,
@@ -64,3 +65,25 @@ def parse_order_input(text: str) -> dict:
         return {"intent": "incomplete_order", "order_items": []}
 
     return {"intent": "ambiguous", "order_items": []}
+
+
+def semantic_parser_node(state):
+    text = state.get("last_user_message") or ""
+    llm = LLMService()
+    if llm.available:
+        try:
+            result = llm.parse_order_message(text)
+            state["order_items"] = result.get("order_items", [])
+            state["status"] = {
+                "food_order": "ORDER_RECEIVED",
+                "incomplete_order": "ORDER_RECEIVED",
+                "unrelated": "ORDER_RECEIVED",
+                "ambiguous": "ORDER_RECEIVED",
+            }.get(result.get("intent"), "ORDER_RECEIVED")
+            return state
+        except Exception:
+            pass
+    parsed = parse_order_input(text)
+    state["order_items"] = parsed.get("order_items", [])
+    state["status"] = "ORDER_RECEIVED"
+    return state

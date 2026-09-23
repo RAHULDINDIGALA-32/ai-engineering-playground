@@ -7,6 +7,7 @@ MENU = {
     "fries": 8,
     "pasta": 6,
     "salad": 4,
+    "coke": 50,
 }
 
 

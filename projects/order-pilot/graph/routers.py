@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from ..models import OrderStatus
+from models import OrderStatus
+
+
+def route_after_parser(state):
+    intent = state.get("intent")
+    if intent == "food_order":
+        return "confirm_order"
+    return "response"
 
 
 def route_after_confirmation(state):
@@ -10,8 +17,8 @@ def route_after_confirmation(state):
     if status == OrderStatus.ORDER_PARTIAL:
         return "user_decision"
     if status == OrderStatus.ORDER_NA:
-        return "await_order"
-    return "await_order"
+        return "response"
+    return "response"
 
 
 def route_after_cook(state):
@@ -21,22 +28,22 @@ def route_after_cook(state):
     if status == OrderStatus.ORDER_FAILED:
         if int(state.get("cook_attempts_remaining", 0)) > 0:
             return "cook"
-        return "end"
-    return "end"
+        return "response"
+    return "response"
 
 
 def route_after_serve(state):
     status = state.get("status")
     if status == OrderStatus.ORDER_COMPLETED:
-        return "end"
+        return "response"
     if status == OrderStatus.ORDER_FAILED:
         serve_remaining = int(state.get("serve_attempts_remaining", 0))
         if serve_remaining > 0:
             if int(state.get("cook_attempts_remaining", 0)) > 0:
                 return "cook"
             return "serve"
-        return "end"
-    return "end"
+        return "response"
+    return "response"
 
 
 def route_after_user_decision(state):
@@ -44,7 +51,7 @@ def route_after_user_decision(state):
     if decision == "ACCEPT_PARTIAL":
         return "cook"
     if decision == "NEW_ORDER":
-        return "await_order"
+        return "response"
     if decision == "AMBIGUOUS":
         return "user_decision"
-    return "await_order"
+    return "response"

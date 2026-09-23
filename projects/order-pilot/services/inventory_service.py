@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from menu_service import get_available_quantity
+from services.menu_service import get_available_quantity
 
 
 class InventoryService:
