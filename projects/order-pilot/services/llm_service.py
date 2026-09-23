@@ -15,6 +15,8 @@ from pydantic import (
     model_validator,
 )
 
+from .menu_service import MENU
+
 # ============================================================
 # LLM OUTPUT SCHEMAS
 # ============================================================
@@ -382,6 +384,7 @@ class LLMService:
                     "For food_order, extract every explicitly requested "
                     "dish and its quantity.\n\n"
                     "Rules:\n"
+                    f"0. The menu {MENU} of the restaurant to get the parsing correct, even if it is mis-spelled. Never assume the quantities mentioned here, they are representational purpose only. If include the dished not present in the atatched MENU list if they present in user's message. (need to be strictly follow)"
                     "1. Never check inventory.\n"
                     "2. Never assume inventory availability.\n"
                     "3. Never create workflow commands.\n"
